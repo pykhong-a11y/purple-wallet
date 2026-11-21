@@ -1,1 +1,1 @@
-PYs Wallet v1.17 — Logo picker visibility fix and four additional offline icons. Upload all files to GitHub Pages. Back up wallet data before updating.
+PY’s Wallet v1.18 — History account icons and iPhone date field alignment. Back up wallet data before updating. Replace all website files. No changes to local storage keys or transaction data.
