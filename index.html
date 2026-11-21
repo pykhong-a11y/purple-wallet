@@ -108,29 +108,45 @@ function saveBudget(){let n=Number(document.getElementById('budget').value);if(!
 function captureHash(text){let h=2166136261;for(let i=0;i<text.length;i++){h^=text.charCodeAt(i);h=Math.imul(h,16777619)}return (h>>>0).toString(16)}
 function extractPayment(text){
   text=String(text||'').trim();if(!text)return {reason:'No readable text'};
-  const amounts=[...text.matchAll(/(?:RM|MYR)\s*([\d,]+\.\d{2})\b/gi)].map(m=>Number(m[1].replace(/,/g,'')));
-  const distinct=[...new Set(amounts.filter(v=>Number.isFinite(v)&&v>0&&v<1000000))];
+  const amounts=[...text.matchAll(/(?:RM|MYR)\s*([-+]?\s*[\d,]+\.\d{2})\b/gi)].map(m=>Number(m[1].replace(/[\s,]/g,'')));
+  const distinct=[...new Set(amounts.filter(v=>Number.isFinite(v)&&Math.abs(v)>0&&Math.abs(v)<1000000).map(Math.abs))];
   if(distinct.length!==1)return {reason:distinct.length?'Multiple different amounts detected':'No clear RM amount detected'};
   const lower=text.toLowerCase();
   if(/\b(failed|declined|unsuccessful|cancelled|reversed|refunded|pending approval)\b/i.test(text))return {reason:'Payment may not have completed'};
-  if(!/\b(success|successful|completed|paid|payment|purchase|receipt|transaction)\b/i.test(text))return {reason:'Payment confirmation not clear'};
-  const candidates=state.accounts.filter(a=>!a.archived&&a.name.toLowerCase()!=='other'&&lower.includes(a.name.toLowerCase()));
-  if(candidates.length!==1)return {reason:'Payment account unclear or multiple accounts mentioned'};
+  if(!/\b(success|successful|completed|paid|payment|purchase|receipt|transaction|duitnow)\b/i.test(text))return {reason:'Payment confirmation not clear'};
   if(/\b(transfer|received|credited|top.?up|reload)\b/i.test(text))return {reason:'Possible transfer or incoming payment; needs review'};
+  // TNG's own receipts often identify the wallet as TNGD/TNGOW, not "TNG eWallet".
+  const tngReceipt=/\bTNGD\b|\bTNGOW[A-Z0-9]*\b|\btouch\s*['’]?n\s*go\b|\btng\s*ewallet\b/i.test(text);
+  const explicit=state.accounts.filter(a=>!a.archived&&a.name.toLowerCase()!=='other'&&lower.includes(a.name.toLowerCase()));
+  const tngAccounts=state.accounts.filter(a=>!a.archived&&/\b(tng|touch\s*['’]?n\s*go)\b/i.test(a.name));
+  let candidates=explicit.slice();
+  if(tngReceipt&&tngAccounts.length===1&&!candidates.some(a=>a.id===tngAccounts[0].id))candidates.push(tngAccounts[0]);
+  if(candidates.length!==1)return {reason:'Payment account unclear or multiple accounts mentioned'};
+  // Do not auto-save if text suggests another account paid, even when TNG appears as merchant.
+  if(tngReceipt&&!/(?:\beWallet Balance\b|\bPayment Method\s*:?\s*eWallet\b|\bTNG eWallet\b)/i.test(text))return {reason:'TNG payment source not confirmed'};
   const lines=text.split(/\n/).map(x=>x.trim()).filter(Boolean);
-  let merchant=lines.find(x=>/^(merchant|payee|paid to|recipient|store)\s*:/i.test(x));
-  merchant=merchant?merchant.replace(/^[^:]+:\s*/, '').slice(0,80):'';
-  return {amount:distinct[0],account:candidates[0],merchant,reason:null};
+  let merchant=lines.find(x=>/^(merchant|payee|paid to|recipient|store)\s*:?\s*\S/i.test(x));
+  merchant=merchant?merchant.replace(/^(merchant|payee|paid to|recipient|store)\s*:?\s*/i,'').slice(0,80):'';
+  if(!merchant){let match=text.match(/\bMerchant\s+(.+?)(?=\s+Payment Details|\s+Payment Method|\n|$)/i);if(match)merchant=match[1].trim().slice(0,80)}
+  // A dated receipt uses its payment date rather than the date it was scanned.
+  let date=new Date().toLocaleDateString('en-CA');
+  const dm=text.match(/\b(?:Date\/Time|Payment Date|Transaction Date)\s*:?\s*(\d{2})\/(\d{2})\/(\d{4})/i);
+  if(dm){let d=new Date(Number(dm[3]),Number(dm[2])-1,Number(dm[1]));if(d.getDate()===Number(dm[1])&&d.getMonth()===Number(dm[2])-1)date=`${dm[3]}-${dm[2]}-${dm[1]}`}
+  return {amount:distinct[0],account:candidates[0],merchant,date,reason:null};
 }
 function processCapture(text){
   text=String(text||'').trim();if(!text)return toast('No payment text provided');
   state.captureHashes=state.captureHashes||[];state.pendingCaptures=state.pendingCaptures||[];
   const hash=captureHash(text.toLowerCase().replace(/\s+/g,' '));
-  if(state.captureHashes.includes(hash)||state.pendingCaptures.some(x=>x.hash===hash)){toast('This capture was already processed');return}
+  if(state.captureHashes.includes(hash)||state.transactions.some(t=>t.captureHash===hash)){toast('This capture was already saved');return}
+  const pending=state.pendingCaptures.find(x=>x.hash===hash);
   const result=extractPayment(text);
-  if(result.reason){state.pendingCaptures.unshift({id:crypto.randomUUID(),hash,text,reason:result.reason,created:Date.now()});save();show('capture');document.getElementById('captureResult').textContent='Needs review: '+result.reason;return}
-  // Only one clear MYR amount, one known account and successful outgoing payment are auto-saved.
-  state.transactions.push({id:crypto.randomUUID(),kind:'expense',amount:result.amount,from:result.account.id,to:null,category:'Other',date:new Date().toLocaleDateString('en-CA'),note:result.merchant||'Screenshot payment',created:Date.now(),captureHash:hash});
+  if(result.reason){if(!pending)state.pendingCaptures.unshift({id:crypto.randomUUID(),hash,text,reason:result.reason,created:Date.now()});save();show('capture');document.getElementById('captureResult').textContent='Needs review: '+result.reason;return}
+  // Require review when a similar amount, account and date already exists (manual entry or statement).
+  const possibleDuplicate=state.transactions.some(t=>t.kind==='expense'&&t.from===result.account.id&&Math.abs(t.amount-result.amount)<0.005&&t.date===result.date);
+  if(possibleDuplicate){if(!pending)state.pendingCaptures.unshift({id:crypto.randomUUID(),hash,text,reason:'Possible duplicate of an existing transaction',created:Date.now()});save();show('capture');document.getElementById('captureResult').textContent='Needs review: possible duplicate';return}
+  state.transactions.push({id:crypto.randomUUID(),kind:'expense',amount:result.amount,from:result.account.id,to:null,category:'Other',date:result.date,note:result.merchant||'Screenshot payment',created:Date.now(),captureHash:hash});
+  state.pendingCaptures=state.pendingCaptures.filter(x=>x.hash!==hash);
   state.captureHashes.push(hash);save();show('capture');document.getElementById('captureResult').textContent='Automatically saved RM '+result.amount.toFixed(2)+' from '+result.account.name;toast('Payment saved automatically');
 }
 function renderPending(){let el=document.getElementById('pendingList');if(!el)return;let arr=state.pendingCaptures||[];el.innerHTML=arr.length?arr.map(x=>`<div class="pending"><strong>${safe(x.reason)}</strong><div class="hint">${safe(x.text.slice(0,240))}</div><div class="actions"><button class="smallbtn" onclick="reviewCapture('${x.id}')">Review</button><button class="secondary smallbtn" onclick="dismissCapture('${x.id}')">Dismiss</button></div></div>`).join(''):'<div class="empty">No pending captures.</div>'}

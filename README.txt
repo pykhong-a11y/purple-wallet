@@ -24,3 +24,6 @@ v1.5: Quick Add floating button on all screens. Quick Entry, Full Entry, Split B
 
 
 v1.6: Trip Albums, manual multi-currency conversion, claimable expenses, company reimbursements excluded from income, trip CSV export. Local data only; no automatic cloud backup or live exchange-rate feed. Existing storage key preserved.
+
+
+v1.7: TNG receipt identification using TNGD/TNGOW, eWallet Balance confirmation, receipt date, duplicate check and retry of pending OCR captures.
