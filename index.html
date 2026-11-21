@@ -42,7 +42,7 @@
 .settings-back{border:0;background:#f0e5d9;color:#76584d;padding:11px 15px;border-radius:14px;font-weight:700;margin:4px 0 16px}
 .settings-detail-title{font-size:25px;margin:0 0 13px}.settings-panel>.card{margin-top:0}
 @media(max-width:350px){.settings-grid{gap:7px}.settings-tile{min-height:94px;padding:10px 3px}.settings-label{font-size:10px}}
-</style></head><body><div id="toast" role="status"></div><header><h1>👛 PY’s Wallet</h1><small>A little calm for your money</small></header><main class="wrap"><section class="screen active" id="home">
+</style></head><body><div id="toast" role="status"></div><header><h1>👛 PY’s Wallet</h1><small>A little calm for your money</small></header><main class="wrap"><section class="screen active" id="home"><div id="homeCloudStatus" role="status" aria-live="polite" style="font-size:12px;color:#71827c;padding:3px 10px 0;margin:0 0 4px">☁️ Checking cloud connection…</div>
 <div class="card monthly-header"><div class="row"><button class="secondary" onclick="shiftMonth(-1)" aria-label="Previous month">❮</button><div style="text-align:center"><h2 id="monthHeading" style="margin:0">Monthly transactions</h2><small>Income and spending by payment date</small></div><button class="secondary" onclick="shiftMonth(1)" aria-label="Next month">❯</button></div><div class="grid" style="margin-top:16px"><div class="card" style="background:#edf5ef"><small>INCOME</small><div class="stat positive" id="income">RM 0.00</div></div><div class="card" style="background:#fff0eb"><small>EXPENSES</small><div class="stat negative" id="expenses">RM 0.00</div></div></div><div class="row" style="margin-top:12px"><small>Monthly net</small><strong id="monthNet">RM 0.00</strong></div></div>
 <div class="card"><div class="row"><h2>Transactions</h2><button class="secondary" onclick="show('add')">＋ Add</button></div><div class="grid"><div><label>Account</label><select id="homeAccount" onchange="renderMonthly()"><option value="all">All accounts</option></select></div><div><label>Type</label><select id="homeKind" onchange="renderMonthly()"><option value="all">All</option><option value="expense">Expenses</option><option value="income">Income</option><option value="transfer">Transfers</option><option value="reimbursement">Reimbursements</option></select></div></div><div id="monthlyTransactions"></div></div>
 <div class="card"><div class="row"><h2>Monthly budget</h2><button class="secondary" onclick="show('more')">Settings</button></div><div id="budgetPreview"></div></div></section>
@@ -368,12 +368,12 @@ function cloudLoadBaseline(){cloudLastConfirmed=localStorage.getItem(cloudBaseli
 function cloudHasLocalChanges(){return !cloudLastConfirmed||cloudFingerprint(state)!==cloudLastConfirmed}
 
 const cloudHeaders=()=>({'apikey':CLOUD_KEY,'Content-Type':'application/json',...(cloudSession?.access_token?{'Authorization':'Bearer '+cloudSession.access_token}:{})});
-function cloudStatus(message){const e=document.getElementById('cloudStatus');if(e)e.textContent=message}
+function cloudStatus(message){const e=document.getElementById('cloudStatus');if(e)e.textContent=message;const h=document.getElementById('homeCloudStatus');if(h)h.textContent=message}
 function cloudUi(){document.getElementById('cloudLogin').hidden=!!cloudSession;document.getElementById('cloudConnected').hidden=!cloudSession;if(cloudSession)cloudStatus((cloudEnabled?'☁️ Auto sync on':'Signed in · Initial sync needed')+' · '+(cloudSession.user?.email||''))}
 async function cloudAuth(path,body){const r=await fetch(CLOUD_URL+'/auth/v1/'+path,{method:'POST',headers:cloudHeaders(),body:JSON.stringify(body)});const data=await r.json();if(!r.ok)throw Error(data.msg||data.error_description||data.message||'Authentication failed');return data}
 async function cloudSignUp(){const email=document.getElementById('cloudEmail').value.trim(),password=document.getElementById('cloudPassword').value;if(!email||password.length<8)return alert('Enter your email and a password of at least 8 characters.');try{await cloudAuth('signup',{email,password,options:{email_redirect_to:location.origin+location.pathname}});alert('Account created. Check your email to confirm it, then return here and sign in.')}catch(e){alert(e.message)}}
-async function cloudSignIn(){try{const data=await cloudAuth('token?grant_type=password',{email:document.getElementById('cloudEmail').value.trim(),password:document.getElementById('cloudPassword').value});cloudSession=data;sessionStorage.setItem(CLOUD_SESSION_KEY,JSON.stringify(data));cloudEnabled=false;cloudLoadBaseline();cloudUi();await cloudFirstSync()}catch(e){alert(e.message)}}
-async function cloudRefreshToken(){if(!cloudSession)return false;if(Date.now()<((cloudSession.expires_at||0)*1000-60000))return true;try{const data=await cloudAuth('token?grant_type=refresh_token',{refresh_token:cloudSession.refresh_token});cloudSession=data;sessionStorage.setItem(CLOUD_SESSION_KEY,JSON.stringify(data));return true}catch(e){cloudEnabled=false;cloudStatus('Session expired. Sign in again.');return false}}
+async function cloudSignIn(){try{const data=await cloudAuth('token?grant_type=password',{email:document.getElementById('cloudEmail').value.trim(),password:document.getElementById('cloudPassword').value});cloudSession=data;cloudSaveSession(data);cloudEnabled=false;cloudLoadBaseline();cloudUi();await cloudFirstSync()}catch(e){alert(e.message)}}
+async function cloudRefreshToken(){if(!cloudSession)return false;if(Date.now()<((cloudSession.expires_at||0)*1000-60000))return true;try{const data=await cloudAuth('token?grant_type=refresh_token',{refresh_token:cloudSession.refresh_token});cloudSession=data;cloudSaveSession(data);return true}catch(e){cloudEnabled=false;cloudStatus('Cloud session unavailable · '+e.message+' · local data kept');return false}}
 async function cloudRead(){if(!await cloudRefreshToken())throw Error('Please sign in again');const r=await fetch(CLOUD_URL+'/rest/v1/wallet_data?select=wallet,updated_at&user_id=eq.'+encodeURIComponent(cloudSession.user.id),{headers:cloudHeaders(),cache:'no-store'});if(!r.ok)throw Error('Cloud read failed ('+r.status+'). Check database permissions.');const d=await r.json();return d[0]||null}
 function cloudCount(w){return Array.isArray(w?.transactions)?w.transactions.length:0}
 async function cloudWrite(payload,expected){if(!await cloudRefreshToken())throw Error('Please sign in again');let r;if(expected===null){r=await fetch(CLOUD_URL+'/rest/v1/wallet_data?on_conflict=user_id',{method:'POST',headers:{...cloudHeaders(),'Prefer':'resolution=ignore-duplicates,return=representation'},body:JSON.stringify({user_id:cloudSession.user.id,wallet:payload})})}else{r=await fetch(CLOUD_URL+'/rest/v1/wallet_data?user_id=eq.'+encodeURIComponent(cloudSession.user.id)+'&updated_at=eq.'+encodeURIComponent(expected),{method:'PATCH',headers:{...cloudHeaders(),'Prefer':'return=representation'},body:JSON.stringify({wallet:payload,updated_at:new Date().toISOString()})})}if(!r.ok)throw Error('Cloud save failed ('+r.status+').');const rows=await r.json();if(!rows.length)throw Error('Cloud changed on another device. Refresh from cloud before editing.');cloudRemoteVersion=rows[0].updated_at;cloudLastConfirmed=cloudFingerprint(payload);try{localStorage.setItem(cloudBaselineKey(),cloudLastConfirmed)}catch{}return rows[0]}
@@ -387,9 +387,29 @@ cloudRemoteVersion=remote.updated_at;if(localCount===0&&remoteCount>0){state=rem
 async function cloudPull(){if(!cloudSession)return;try{const remote=await cloudRead();if(!remote)return alert('No cloud data yet.');if(!confirm('Replace this device’s current wallet with '+cloudCount(remote.wallet)+' transactions from cloud?'))return;state=remote.wallet;localStorage.setItem(KEY,JSON.stringify(state));cloudRemoteVersion=remote.updated_at;cloudEnabled=true;cloudMarkSynced();render();cloudStatus('☁️ Auto sync on · refreshed')}catch(e){alert(e.message)}}
 function cloudSchedulePush(){if(!cloudEnabled||!cloudSession)return;clearTimeout(cloudTimer);cloudTimer=setTimeout(cloudPush,1200)}
 async function cloudPush(){if(cloudBusy||cloudChecking||!cloudEnabled||!cloudSession)return;cloudBusy=true;try{const remote=await cloudRead();if(!remote||remote.updated_at!==cloudRemoteVersion){cloudEnabled=false;cloudStatus('Cloud changed elsewhere · tap Set up / check cloud data to resolve');return}if(cloudCount(state)===0&&cloudCount(remote.wallet)>0){cloudEnabled=false;cloudStatus('Protected: empty wallet was NOT uploaded');return}const snapshot=JSON.parse(JSON.stringify(state));await cloudWrite(snapshot,remote.updated_at);if(JSON.stringify(state)!==JSON.stringify(snapshot))cloudSchedulePush();cloudStatus('☁️ Auto sync on · saved')}catch(e){cloudEnabled=false;cloudStatus('Sync paused: '+e.message)}finally{cloudBusy=false;if(cloudEnabled&&cloudHasLocalChanges())cloudSchedulePush()}}
-function cloudSignOut(){cloudSession=null;cloudEnabled=false;cloudRemoteVersion=null;cloudLastConfirmed=null;sessionStorage.removeItem(CLOUD_SESSION_KEY);cloudUi()}
-try{cloudSession=JSON.parse(sessionStorage.getItem(CLOUD_SESSION_KEY)||'null');if(cloudSession)cloudLoadBaseline()}catch{};
-setTimeout(()=>{cloudUi();if(cloudSession)cloudFirstSync()},350);
+function cloudSignOut(){cloudSession=null;cloudEnabled=false;cloudRemoteVersion=null;cloudLastConfirmed=null;localStorage.removeItem(CLOUD_SESSION_KEY);sessionStorage.removeItem(CLOUD_SESSION_KEY);cloudUi();cloudStatus('☁️ Not connected · sign in under More → Cloud Sync')}
+// v1.24: Home Screen PWAs do not reliably retain sessionStorage after closing.
+// Keep the renewable session in origin-scoped localStorage. Never store passwords.
+function cloudSaveSession(data){
+ if(!data?.access_token||!data?.refresh_token||!data?.user?.id)throw Error('Incomplete cloud login response');
+ if(!data.expires_at&&data.expires_in)data.expires_at=Math.floor(Date.now()/1000)+Number(data.expires_in);
+ localStorage.setItem(CLOUD_SESSION_KEY,JSON.stringify(data));
+ sessionStorage.removeItem(CLOUD_SESSION_KEY);
+}
+try{
+ const stored=localStorage.getItem(CLOUD_SESSION_KEY)||sessionStorage.getItem(CLOUD_SESSION_KEY);
+ cloudSession=stored?JSON.parse(stored):null;
+ if(cloudSession?.refresh_token&&cloudSession?.user?.id){
+  cloudSaveSession(cloudSession);cloudLoadBaseline();
+ }else{cloudSession=null;localStorage.removeItem(CLOUD_SESSION_KEY)}
+}catch(e){cloudSession=null;cloudStatus('Cloud login could not be restored · sign in again')}
+setTimeout(async()=>{
+ cloudUi();
+ if(cloudSession){
+  cloudStatus('☁️ Restoring cloud session…');
+  await cloudFirstSync();
+ }else cloudStatus('☁️ Not connected · sign in under More → Cloud Sync');
+},350);
 // Check on launch, when returning from the app switcher, and periodically while visible.
 // Never replace a wallet with unsynced local edits or an empty cloud response.
 async function cloudCheckForUpdates(force=false){
