@@ -1,27 +1,26 @@
-PURPLE WALLET - FIRST USABLE VERSION
+PY’s Wallet v1.3 — Cream Edition
 
-What works:
-- iPhone responsive lavender app
-- Account balances with custom opening balances
-- Income, expenses, transfers (transfers excluded from income/expense totals)
-- Monthly budget, savings goals, history filters
-- Device-local storage, offline access after first successful online installation
-- Manual JSON backup export and restore
+Features: account management, transactions, budgets, goals, backup, screenshot-text import via Apple Shortcuts.
 
-Not yet implemented:
-- Automatic cloud backup (requires a cloud provider, user authentication, and secure database)
-- Direct bank / Apple Pay integration, bank statement import, receipt import, recurring bills, charts
-- Face ID/PIN or end-to-end encryption
+Install: upload the six files to the root of your GitHub Pages repository, replacing the previous files. Keep the same repository URL and storage key. Export a backup before updating.
 
-IMPORTANT: Financial data is stored in browser localStorage on this device. It can be lost if Safari website data is cleared, the app is removed, or the device is reset. Export regular backups. Exported JSON files are NOT encrypted; store privately.
+Shortcut: Create a shortcut with Take Screenshot, Extract Text from Image, URL Encode the extracted text, construct https://pykhong-a11y.github.io/purple-wallet/?ocr=ENCODED_TEXT and Open URLs. Replace ENCODED_TEXT with the encoded output variable. Set Settings > Accessibility > Touch > Back Tap > Double Tap to that shortcut.
 
-FREE HOSTING FROM IPHONE (GitHub Pages):
-1. Create a free GitHub account at https://github.com (if needed).
-2. Create a new PUBLIC repository called purple-wallet. WARNING: The source code will be public; never put personal financial data or passwords into the repository.
-3. Upload the five files in this ZIP to the repository root (index.html, manifest.webmanifest, service-worker.js, icon-192.png, icon-512.png). GitHub's mobile website may require 'Request Desktop Website' in Safari to access upload controls.
-4. In repository Settings > Pages > Build and deployment, choose Deploy from a branch, main, / (root), Save.
-5. Open https://YOUR-USERNAME.github.io/purple-wallet/ after Pages publishes (may take a few minutes).
-6. In Safari, tap Share > Add to Home Screen > Add.
-7. Launch Purple Wallet from your Home Screen. Open once with internet to cache the app, then it can run offline.
+Auto-save only when one distinct MYR amount, one recognized active account, and successful outgoing payment are identified. Uncertain captures remain pending. Duplicate identical OCR texts are rejected. Screenshots blocked by banks cannot be read.
 
-Note: GitHub Pages serves the PUBLIC app code only. Your transactions are not uploaded to GitHub; they stay on your device. For automatic encrypted cloud backups, a separate private backend is required.
+Important: cloud backup, direct bank sync, Apple Pay integration, and fully automatic screenshot capture from ordinary Back Tap Screenshot are not available. The app stores data locally. Manual export is recommended.
+
+
+V1.4 — Back Tap guided setup
+- Open Capture in PY’s Wallet and use Set up Back Tap.
+- The Open Apple Shortcuts button opens the iPhone Shortcuts app. It does NOT install a shortcut automatically.
+- Follow the steps to build Take Screenshot → Extract Text from Image → URL Encode → Text (wallet URL + encoded text variable) → Open URLs.
+- Assign the created shortcut to Double Tap in Settings → Accessibility → Touch → Back Tap.
+- Apple iCloud Shortcut installation link requires creating and sharing an actual shortcut from an Apple device. No share link is bundled.
+- Bank screenshot restrictions cannot be bypassed.
+
+
+v1.5: Quick Add floating button on all screens. Quick Entry, Full Entry, Split Bill, Transfer, receipt photo selection (manual entry only), optional voice dictation where browser supports it. No automatic receipt OCR or cloud sync.
+
+
+v1.6: Trip Albums, manual multi-currency conversion, claimable expenses, company reimbursements excluded from income, trip CSV export. Local data only; no automatic cloud backup or live exchange-rate feed. Existing storage key preserved.
