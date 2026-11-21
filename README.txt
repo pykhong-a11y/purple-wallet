@@ -27,3 +27,6 @@ v1.6: Trip Albums, manual multi-currency conversion, claimable expenses, company
 
 
 v1.7: TNG receipt identification using TNGD/TNGOW, eWallet Balance confirmation, receipt date, duplicate check and retry of pending OCR captures.
+
+
+v1.8: Monthly transactions first on Home; previous/next month, income/expense/net, daily grouped history, account/type filters. Uses transaction payment dates including Capture transactions. Account balances remain under Accounts. No new automatic bank integrations. Existing local data key preserved.
