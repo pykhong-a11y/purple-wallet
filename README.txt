@@ -1,1 +1,6 @@
-PY’s Wallet v1.18 — History account icons and iPhone date field alignment. Back up wallet data before updating. Replace all website files. No changes to local storage keys or transaction data.
+PY’s Wallet v1.20 — Settings Dashboard + Cloud Sync
+
+Upload all 14 files to the root of your GitHub Pages repository.
+Preserves the same localStorage key and v1.19 cloud sync implementation.
+Back up your Safari wallet before deployment.
+Cloud sync must be signed in and initialized; uploading files does not sync transactions by itself.
