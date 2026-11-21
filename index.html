@@ -356,7 +356,7 @@ function checkShortcutHandoff(){const params=new URLSearchParams(location.search
 document.getElementById('date').value=new Date().toLocaleDateString('en-CA');render();checkShortcutHandoff();if('serviceWorker'in navigator&&location.protocol==='https:')navigator.serviceWorker.register('./service-worker.js').catch(()=>{});
 setTimeout(handleQuickLink,120);
 /* v1.19 cloud sync. Never put a service_role key in a public site. */
-const CLOUD_URL='https://avkgysnvskleraqoosir.supabase.co',CLOUD_KEY='sb_publishable_hDaPP_kPwSZVQnLyF9UOMA_gxeTGKby',CLOUD_SESSION_KEY='pys-wallet-cloud-session';
+const CLOUD_URL='https://avkgsynvskleraqoosir.supabase.co',CLOUD_KEY='sb_publishable_hDaPP_kPwSZVQnLyF9UOMA_gxeTGKby',CLOUD_SESSION_KEY='pys-wallet-cloud-session';
 let cloudSession=null,cloudRemoteVersion=null,cloudTimer=null,cloudBusy=false,cloudEnabled=false;
 const cloudHeaders=()=>({'apikey':CLOUD_KEY,'Content-Type':'application/json',...(cloudSession?.access_token?{'Authorization':'Bearer '+cloudSession.access_token}:{})});
 function cloudStatus(message){const e=document.getElementById('cloudStatus');if(e)e.textContent=message}
