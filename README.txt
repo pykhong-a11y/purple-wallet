@@ -30,3 +30,6 @@ v1.7: TNG receipt identification using TNGD/TNGOW, eWallet Balance confirmation,
 
 
 v1.8: Monthly transactions first on Home; previous/next month, income/expense/net, daily grouped history, account/type filters. Uses transaction payment dates including Capture transactions. Account balances remain under Accounts. No new automatic bank integrations. Existing local data key preserved.
+
+
+v1.8.1: Fix monthly totals being overwritten by current-month totals. If history is missing, verify the same Safari/PWA installation or restore a backup. Data is never intentionally cleared.
